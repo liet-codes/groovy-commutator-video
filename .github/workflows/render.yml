@@ -1,0 +1,70 @@
+name: Render Manim Video
+
+on:
+  push:
+    paths:
+      - 'groovy_commutator.py'
+      - '.github/workflows/render.yml'
+  workflow_dispatch:
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Render with Manim
+      uses: manimcommunity/manim-github-action@v0.4
+      with:
+        manim-version: '0.19.0'
+        scene-names: |
+          Scene1_Mystery
+          Scene2_ClassificationProblem
+          Scene3_Operators
+          Scene4_Commutator
+          Scene5_MonomialSupport
+          Scene6_ExperimentalResults
+          Scene7_Universality
+          Scene8_Implication
+        args: "-qh --fps=60"
+        
+    - name: Upload scene videos
+      uses: actions/upload-artifact@v4
+      with:
+        name: scene-videos
+        path: media/videos/groovy_commutator/1080p60/*.mp4
+        
+    - name: Stitch final video
+      run: |
+        sudo apt-get update && sudo apt-get install -y ffmpeg
+        
+        # Create concat list for ffmpeg
+        cat > concat.txt << 'EOF'
+        file 'media/videos/groovy_commutator/1080p60/Scene1_Mystery.mp4'
+        file 'media/videos/groovy_commutator/1080p60/Scene2_ClassificationProblem.mp4'
+        file 'media/videos/groovy_commutator/1080p60/Scene3_Operators.mp4'
+        file 'media/videos/groovy_commutator/1080p60/Scene4_Commutator.mp4'
+        file 'media/videos/groovy_commutator/1080p60/Scene5_MonomialSupport.mp4'
+        file 'media/videos/groovy_commutator/1080p60/Scene6_ExperimentalResults.mp4'
+        file 'media/videos/groovy_commutator/1080p60/Scene7_Universality.mp4'
+        file 'media/videos/groovy_commutator/1080p60/Scene8_Implication.mp4'
+        EOF
+        
+        # Concatenate all scenes
+        ffmpeg -y -f concat -safe 0 -i concat.txt -c copy final.mp4
+        
+    - name: Upload final video
+      uses: actions/upload-artifact@v4
+      with:
+        name: groovy-commutator-video
+        path: final.mp4
+        
+    - name: Release video (on tag)
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: final.mp4
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

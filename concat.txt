@@ -1,0 +1,8 @@
+file 'media/videos/groovy_commutator/480p15/Scene1_Mystery.mp4'
+file 'media/videos/groovy_commutator/480p15/Scene2_ClassificationProblem.mp4'
+file 'media/videos/groovy_commutator/480p15/Scene3_Operators.mp4'
+file 'media/videos/groovy_commutator/480p15/Scene4_Commutator.mp4'
+file 'media/videos/groovy_commutator/480p15/Scene5_MonomialSupport.mp4'
+file 'media/videos/groovy_commutator/480p15/Scene6_ExperimentalResults.mp4'
+file 'media/videos/groovy_commutator/480p15/Scene7_Universality.mp4'
+file 'media/videos/groovy_commutator/480p15/Scene8_Implication.mp4'
