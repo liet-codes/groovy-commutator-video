@@ -8,170 +8,50 @@ on:
         required: true
         type: string
       quality:
-        description: 'Render quality'
+        description: 'Render quality (low, medium, high)'
         required: true
         default: 'high'
-        type: choice
-        options:
-          - low
-          - medium
-          - high
+        type: string
   push:
     tags:
-      - 'video/*/v*'  # Trigger on tags like video/groovy-commutator/v1.0
+      - 'video/*/v*'
 
 jobs:
-  parse-input:
+  render:
     runs-on: ubuntu-latest
-    outputs:
-      video_path: ${{ steps.parse.outputs.video_path }}
-      quality: ${{ steps.parse.outputs.quality }}
-      stitch: ${{ steps.parse.outputs.stitch }}
-      output_name: ${{ steps.parse.outputs.output_name }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         
-      - name: Parse workflow inputs
+      - name: Parse inputs
         id: parse
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             VIDEO_NAME="${{ github.event.inputs.video_name }}"
             QUALITY="${{ github.event.inputs.quality }}"
           else
-            # Parse from tag: video/name/v1.0
             VIDEO_NAME=$(echo "${{ github.ref_name }}" | cut -d'/' -f2)
             QUALITY="high"
           fi
           
-          VIDEO_PATH="videos/${VIDEO_NAME}"
-          
-          if [ ! -d "${VIDEO_PATH}" ]; then
-            echo "Error: Video folder not found: ${VIDEO_PATH}"
-            exit 1
-          fi
-          
-          # Read config if exists
-          if [ -f "${VIDEO_PATH}/config.yml" ]; then
-            STITCH=$(yq eval '.stitch // true' "${VIDEO_PATH}/config.yml")
-            OUTPUT_NAME=$(yq eval '.output_name // "${VIDEO_NAME}"' "${VIDEO_PATH}/config.yml")
-          else
-            STITCH="true"
-            OUTPUT_NAME="${VIDEO_NAME}"
-          fi
-          
-          echo "video_path=${VIDEO_PATH}" >> $GITHUB_OUTPUT
+          echo "video_name=${VIDEO_NAME}" >> $GITHUB_OUTPUT
           echo "quality=${QUALITY}" >> $GITHUB_OUTPUT
-          echo "stitch=${STITCH}" >> $GITHUB_OUTPUT
-          echo "output_name=${OUTPUT_NAME}" >> $GITHUB_OUTPUT
           
-          echo "Video: ${VIDEO_NAME}"
-          echo "Path: ${VIDEO_PATH}"
-          echo "Quality: ${QUALITY}"
-          echo "Stitch: ${STITCH}"
-          echo "Output: ${OUTPUT_NAME}"
-
-  render:
-    needs: parse-input
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        
-      - name: Setup yq
-        uses: mikefarah/yq@v4
-        
-      - name: Parse config
-        id: config
-        run: |
-          CONFIG_FILE="${{ needs.parse-input.outputs.video_path }}/config.yml"
-          
-          if [ -f "$CONFIG_FILE" ]; then
-            SCENES=$(yq eval '.scenes | join(" ")' "$CONFIG_FILE")
-            FPS=$(yq eval '.fps // 60' "$CONFIG_FILE")
-          else
-            # Auto-detect scenes from Python file
-            SCRIPT_FILE="${{ needs.parse-input.outputs.video_path }}/script.py"
-            SCENES=$(grep -oP "class \K(Scene[0-9]+_[A-Za-z]+)" "$SCRIPT_FILE" | tr '\n' ' ')
-            FPS=60
-          fi
-          
-          # Set quality flags
-          case "${{ needs.parse-input.outputs.quality }}" in
-            low)
-              QUALITY_FLAG="-ql"
-              RES="480p15"
-              ;;
-            medium)
-              QUALITY_FLAG="-qm"
-              RES="720p30"
-              ;;
-            high)
-              QUALITY_FLAG="-qh"
-              RES="1080p60"
-              ;;
+          case "$QUALITY" in
+            low) echo "quality_flag=-ql" >> $GITHUB_OUTPUT ;;
+            medium) echo "quality_flag=-qm" >> $GITHUB_OUTPUT ;;
+            *) echo "quality_flag=-qh" >> $GITHUB_OUTPUT ;;
           esac
-          
-          echo "scenes=${SCENES}" >> $GITHUB_OUTPUT
-          echo "fps=${FPS}" >> $GITHUB_OUTPUT
-          echo "quality_flag=${QUALITY_FLAG}" >> $GITHUB_OUTPUT
-          echo "resolution=${RES}" >> $GITHUB_OUTPUT
-          
-          echo "Scenes: ${SCENES}"
-          echo "FPS: ${FPS}"
-          echo "Quality: ${QUALITY_FLAG}"
       
       - name: Render with Manim
         uses: manimcommunity/manim-github-action@v0.4
         with:
           manim-version: '0.19.0'
-          scene-file: '${{ needs.parse-input.outputs.video_path }}/script.py'
-          scene-names: '${{ steps.config.outputs.scenes }}'
-          args: '${{ steps.config.outputs.quality_flag }} --fps=${{ steps.config.outputs.fps }}'
+          scene-file: 'videos/${{ steps.parse.outputs.video_name }}/script.py'
+          args: '${{ steps.parse.outputs.quality_flag }}'
       
-      - name: Upload scene videos
+      - name: Upload video
         uses: actions/upload-artifact@v4
         with:
-          name: scene-videos-${{ needs.parse-input.outputs.output_name }}
-          path: media/videos/script/${{ steps.config.outputs.resolution }}/*.mp4
-      
-      - name: Stitch final video
-        if: needs.parse-input.outputs.stitch == 'true'
-        run: |
-          sudo apt-get update && sudo apt-get install -y ffmpeg
-          
-          VIDEO_PATH="${{ needs.parse-input.outputs.video_path }}"
-          RES="${{ steps.config.outputs.resolution }}"
-          
-          # Build concat list from rendered scenes
-          > concat.txt
-          for scene in ${{ steps.config.outputs.scenes }}; do
-            FILE="media/videos/script/${RES}/${scene}.mp4"
-            if [ -f "$FILE" ]; then
-              echo "file '${FILE}'" >> concat.txt
-            fi
-          done
-          
-          if [ -s concat.txt ]; then
-            ffmpeg -y -f concat -safe 0 -i concat.txt -c copy "${{ needs.parse-input.outputs.output_name }}.mp4"
-            echo "Final video created: ${{ needs.parse-input.outputs.output_name }}.mp4"
-          else
-            echo "No scenes found to stitch"
-            exit 1
-          fi
-      
-      - name: Upload final video
-        if: needs.parse-input.outputs.stitch == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: final-video-${{ needs.parse-input.outputs.output_name }}
-          path: '*.mp4'
-      
-      - name: Release on tag
-        if: startsWith(github.ref, 'refs/tags/video/')
-        uses: softprops/action-gh-release@v1
-        with:
-          files: '*.mp4'
-          name: 'Video: ${{ needs.parse-input.outputs.output_name }}'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: video-${{ steps.parse.outputs.video_name }}
+          path: media/videos/script/**/*.mp4
