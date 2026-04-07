@@ -4,54 +4,30 @@ on:
   workflow_dispatch:
     inputs:
       video_name:
-        description: 'Video folder name (e.g., groovy-commutator)'
+        description: 'Video folder name'
         required: true
+        default: 'groovy-commutator'
         type: string
       quality:
         description: 'Render quality (low, medium, high)'
         required: true
-        default: 'high'
+        default: 'low'
         type: string
-  push:
-    tags:
-      - 'video/*/v*'
 
 jobs:
   render:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        
-      - name: Parse inputs
-        id: parse
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VIDEO_NAME="${{ github.event.inputs.video_name }}"
-            QUALITY="${{ github.event.inputs.quality }}"
-          else
-            VIDEO_NAME=$(echo "${{ github.ref_name }}" | cut -d'/' -f2)
-            QUALITY="high"
-          fi
-          
-          echo "video_name=${VIDEO_NAME}" >> $GITHUB_OUTPUT
-          echo "quality=${QUALITY}" >> $GITHUB_OUTPUT
-          
-          case "$QUALITY" in
-            low) echo "quality_flag=-ql" >> $GITHUB_OUTPUT ;;
-            medium) echo "quality_flag=-qm" >> $GITHUB_OUTPUT ;;
-            *) echo "quality_flag=-qh" >> $GITHUB_OUTPUT ;;
-          esac
+      - uses: actions/checkout@v4
       
       - name: Render with Manim
-        uses: manimcommunity/manim-github-action@v0.4
+        uses: MengAiDev/manim-video-renderer@v1
         with:
-          manim-version: '0.19.0'
-          scene-file: 'videos/${{ steps.parse.outputs.video_name }}/script.py'
-          args: '${{ steps.parse.outputs.quality_flag }}'
+          file: 'videos/${{ github.event.inputs.video_name }}/script.py'
+          quality: '${{ github.event.inputs.quality }}'
+          output_dir: 'rendered'
       
-      - name: Upload video
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: video-${{ steps.parse.outputs.video_name }}
-          path: media/videos/script/**/*.mp4
+          name: video-${{ github.event.inputs.video_name }}
+          path: rendered/**/*.mp4
