@@ -1,0 +1,10 @@
+name: "Video Title"
+description: "Short description of what this video explains"
+scenes:
+  - Scene1_Introduction
+  - Scene2_MainConcept
+  - Scene3_Conclusion
+quality: medium    # low (480p15), medium (720p30), high (1080p60)
+fps: 30
+stitch: true       # Concatenate scenes into single video
+output_name: "my-video"  # Base name for output file

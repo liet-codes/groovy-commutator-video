@@ -1,0 +1,15 @@
+name: "Groovy Commutator Explainer"
+description: "Algebraic invariants for computational prediction in cellular automata"
+scenes:
+  - Scene1_Mystery
+  - Scene2_ClassificationProblem
+  - Scene3_Operators
+  - Scene4_Commutator
+  - Scene5_MonomialSupport
+  - Scene6_ExperimentalResults
+  - Scene7_Universality
+  - Scene8_Implication
+quality: high
+fps: 60
+stitch: true
+output_name: "groovy-commutator"
