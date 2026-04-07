@@ -33,11 +33,11 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg texlive-full libcairo2-dev libpango1.0-dev
-          pip install manim
+          pip install manim numpy
       
       - name: Render scenes
         run: |
-          VIDEO_PATH="videos/${{ github.event.inputs.video_name }}"
+          VIDEO_NAME="${{ github.event.inputs.video_name }}"
           QUALITY="${{ github.event.inputs.quality }}"
           
           case "$QUALITY" in
@@ -46,8 +46,8 @@ jobs:
             high) FLAGS="-qh" ;;
           esac
           
-          cd "$VIDEO_PATH"
-          manim $FLAGS script.py
+          # Render from repo root, using full path
+          manim $FLAGS "videos/$VIDEO_NAME/script.py"
       
       - name: Upload video
         uses: actions/upload-artifact@v4
