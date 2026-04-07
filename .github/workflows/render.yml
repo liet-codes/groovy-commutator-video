@@ -9,10 +9,14 @@ on:
         default: 'groovy-commutator'
         type: string
       quality:
-        description: 'Render quality (low, medium, high)'
+        description: 'Render quality'
         required: true
         default: 'low'
-        type: string
+        type: choice
+        options:
+        - low
+        - medium
+        - high
 
 jobs:
   render:
@@ -20,14 +24,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Render with Manim
-        uses: MengAiDev/manim-video-renderer@v1
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          file: 'videos/${{ github.event.inputs.video_name }}/script.py'
-          quality: '${{ github.event.inputs.quality }}'
-          output_dir: 'rendered'
+          python-version: '3.11'
       
-      - uses: actions/upload-artifact@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg texlive-full libcairo2-dev libpango1.0-dev
+          pip install manim
+      
+      - name: Render scenes
+        run: |
+          VIDEO_PATH="videos/${{ github.event.inputs.video_name }}"
+          QUALITY="${{ github.event.inputs.quality }}"
+          
+          case "$QUALITY" in
+            low) FLAGS="-ql" ;;
+            medium) FLAGS="-qm" ;;
+            high) FLAGS="-qh" ;;
+          esac
+          
+          cd "$VIDEO_PATH"
+          manim $FLAGS script.py
+      
+      - name: Upload video
+        uses: actions/upload-artifact@v4
         with:
           name: video-${{ github.event.inputs.video_name }}
-          path: rendered/**/*.mp4
+          path: media/videos/**/*.mp4
