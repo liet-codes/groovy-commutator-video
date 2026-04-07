@@ -1,0 +1,28 @@
+name: Render Video (Simple)
+
+on:
+  workflow_dispatch:
+    inputs:
+      video_name:
+        description: 'Video folder name'
+        required: true
+        default: 'groovy-commutator'
+        type: string
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Render
+        uses: manimcommunity/manim-github-action@v0.4
+        with:
+          manim-version: '0.19.0'
+          scene-file: 'videos/${{ github.event.inputs.video_name }}/script.py'
+          args: '-ql'
+      
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rendered-video
+          path: media/videos/script/480p15/*.mp4
