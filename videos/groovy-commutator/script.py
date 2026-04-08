@@ -477,7 +477,7 @@ class Scene7_Universality(Scene):
         
         connections = VGroup()
         for _, pos in topologies:
-            line = Line(pos, g_formula.get_top(), color=ACCENT, stroke_width=1, opacity=0.5)
+            line = Line(pos, g_formula.get_top(), color=ACCENT, stroke_width=1, stroke_opacity=0.5)
             connections.add(line)
         
         self.play(*[Create(c) for c in connections], run_time=1.5)
